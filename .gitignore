@@ -1,1 +1,4 @@
 build/
+src/RandomWalk.*
+src/main2.cc
+
