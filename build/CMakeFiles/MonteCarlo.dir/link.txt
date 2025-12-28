@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/MonteCarlo.dir/link.d CMakeFiles/MonteCarlo.dir/src/main.cc.o CMakeFiles/MonteCarlo.dir/src/MonteCarloIntegration.cc.o -o MonteCarlo
