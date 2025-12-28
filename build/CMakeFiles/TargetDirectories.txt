@@ -1,4 +1,0 @@
-/home/murasuu/Programming/MarkovChainMonteCarlo/build/CMakeFiles/MonteCarlo.dir
-/home/murasuu/Programming/MarkovChainMonteCarlo/build/CMakeFiles/RandomWalk.dir
-/home/murasuu/Programming/MarkovChainMonteCarlo/build/CMakeFiles/edit_cache.dir
-/home/murasuu/Programming/MarkovChainMonteCarlo/build/CMakeFiles/rebuild_cache.dir
