@@ -1,0 +1,7 @@
+[requires]
+gsl/2.7.1
+[generators]
+CMakeDeps
+CMakeToolchain
+[layout]
+cmake_layout
