@@ -2,7 +2,8 @@
 #define MONTECARLOINTEGRATION_H
 
 template <class T>
-class MathFunction; //But why ? 
+class MathFunction; //But why ?
+
 
 class MonteCarloIntegration
 {

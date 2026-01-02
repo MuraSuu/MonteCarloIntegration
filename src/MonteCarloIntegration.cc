@@ -1,104 +1,64 @@
-#include "MonteCarloIntegration.hh"
-#include "MathFunction.hh"
-
 #include <iostream>
 #include <cmath>
-#include <random>
+#include <vector>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_cdf.h>
 
-namespace{
-    const int DEFAULT_NUM_SAMPLES = 250;
-    std::default_random_engine random_generator;
+//Calculate the mean i.e the integral.
+double MCIntegral(const std::vector<double>& y_sample)
+{
+    double sum = 0.0;
+    double N = static_cast<double>(y_sample.size());
+
+    for(double yi : y_sample)
+    { 
+        sum += yi;
+    }
+
+    return sum/N;
 }
 
-MonteCarloIntegration::MonteCarloIntegration(MathFunction<double>& f) : m_f(f),
-    m_NumSamples(DEFAULT_NUM_SAMPLES)
-{}
-
-MonteCarloIntegration::MonteCarloIntegration(MathFunction<double>& f, int num_samples)
-    : m_f(f), m_NumSamples(num_samples)
-{}
-
-MonteCarloIntegration::MonteCarloIntegration(const MonteCarloIntegration& p)
-    : m_f(p.m_f),
-    m_NumSamples(p.m_NumSamples)
-{}
-
-MonteCarloIntegration::~MonteCarloIntegration() {}
-
-MonteCarloIntegration& MonteCarloIntegration::operator=(const MonteCarloIntegration& p)
+//Calculate the sample variance of the data. Used for the ConfInterval function.
+double VarEstimate(const std::vector<double>& y_sample, double mean)
 {
-    if(this != &p)
+    double N = static_cast<double>(y_sample.size());
+    double sum = 0.0;
+
+    for(double yi : y_sample)
     {
-        m_f = p.m_f;
-        m_NumSamples = p.m_NumSamples;
+        sum += (yi - mean)*(yi- mean);
     }
-    return *this;
+    return sum/(N-1);
 }
 
-void MonteCarloIntegration::SetNumSamples(int n) {m_NumSamples = n;}
-
-double MonteCarloIntegration::IntegralRegion(double a, double b, double min, double max)
+std::pair<double, double> ConfInterval(double mean, double S_sq, std::size_t N, double alpha)
 {
-    std::uniform_real_distribution<> xdist(a,b);
-    std::uniform_real_distribution<> ydist(min, max);
+    double t_r = gsl_cdf_tdist_Q(1 - alpha/2, N - 1);
+    double t_l = - t_r;
 
-    int points_in = 0;
-    int points_out = 0;
-
-    bool positive = max > 0;
-
-    for(int i = 0; i < m_NumSamples; ++i)
-    {
-        double x = xdist(random_generator);
-        double y = m_f(x);
-
-        double ry = ydist(random_generator);
-
-        if(positive && min <= ry && ry <= y)
-        {
-            points_in += 1;
-        }
-        else if(!positive && y <= ry && ry <= max)
-        {
-            points_in += 1;
-        }
-        else{
-            points_out += 1;
-        }
-    }
-
-    double per_cent_area = 0;
-    if(points_in + points_out > 0)
-    {
-        per_cent_area = points_in/double(points_in + points_out);
-    }
-
-    if(per_cent_area > 0.0)
-    {
-        return (b-a)*(max - min)*per_cent_area;
-    }
-
-    return 0; 
+    return std::make_pair<double, double>(mean + t_l*std::sqrt(S_sq/N), mean + t_r*std::sqrt(S_sq/N));
 }
 
-double MonteCarloIntegration::GetIntegral(double a, double b)
+int main()
 {
-    std::uniform_real_distribution<> dist(a,b);
+    gsl_rng_env_setup();
+    const gsl_rng_type* T = gsl_rng_default;
+    gsl_rng* r = gsl_rng_alloc(T);
+    std::vector<double> y_sample;
 
-    double max = 0;
-    double min = 0;
-
-    for(int i = 0; i < m_NumSamples; ++i)
+    for(int i = 0; i < 10000; ++i)
     {
-        double x = dist(random_generator);
-        double y = m_f(x);
-
-        if(y > max) max = y;
-        if(y < min) min = y;
+        double k = gsl_ran_flat(r, 0.0, 1.0);
+        y_sample.push_back(std::cos(k));
     }
+    
+    double mean = MCIntegral(y_sample);
+    double var = VarEstimate(y_sample, mean);
+    std::cout << "Integral estimate: " << mean << '\n' << "Var.: " << var << '\n'; 
 
-    double pos_int = max > 0 ? IntegralRegion(a,b,0,max) : 0;
-    double neg_int = min < 0 ? IntegralRegion(a,b,min,0) : 0;
+    auto p = ConfInterval(mean, var, y_sample.size(), 0.05);
+    std::cout << "[" <<p.first << ", " << p.second << "] \n";
 
-    return pos_int - neg_int;
+    gsl_rng_free(r);
 }
