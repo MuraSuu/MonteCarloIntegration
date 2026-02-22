@@ -65,48 +65,31 @@ int main()
     //Casting from string to double.
     double b = std::stod(upper_limit);
     double a = std::stod(lower_limit);
-    double N = std::stod(num_samples);
+    int N = std::stoi(num_samples);
 
     parser_t parser;
 
     rand0<double> rand01;
     
-    std::printf("The values given: %f, %f, %f\n", a, b, N);
-    symbol_table.add_variable("a", a);
-    symbol_table.add_variable("b", b);
+    std::printf("Integration from a:%.4f to b: %.4f with %d samples\n", a, b, N);
     symbol_table.add_variable("x", x);
-    symbol_table.add_variable("N", N);
-    symbol_table.add_function("rand01", rand01);
-    symbol_table.add_variable("S", S);
 
-    std::string monte_carlo_integration = 
-        "for(var i := 0; i < 1000; i += 1) "
-        "{                                 "
-        "   x := a + rand01()*(b-a);                 "
-        "   S += "+user_func+" ;           " //w(x)
-        "}                                 ";
-
-        
     expression.register_symbol_table(symbol_table);
  
-    if(!parser.compile(monte_carlo_integration, expression))
+    if(!parser.compile(user_func, expression))
     {
         std::printf("Error: %s\n", 
                 parser.error().c_str());
         return -1;
     }
 
-    std::printf("S=%.5f\n", S/1000.0*(b-a));
-    std::printf("Expression.value()=%.5f\n", expression.value());
-
-    S = 0.0;
-    int M = static_cast<int>(N);
-    for(int i = 0; i < M; ++i)
+    for(int i = 0; i < N; ++i)
     {
         x = a+rand01()*(b-a);
-        S += x*x;
+        S += expression.value();
     }
-    std::printf("Manual integration: %.5f\n", S/M*(b-a));
+
+    std::printf("Integral=: %.5f\n", S/N*(b-a));
 
     return 0;
 }
