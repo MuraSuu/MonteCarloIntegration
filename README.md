@@ -1,2 +1,4 @@
 # MonteCarloIntegration
-An small application of Monte Carlo integration. Born out of a desire to apply some of the concepts i've seen in some books.
+An small application of Monte Carlo integration.
+
+Its just a toy program to apply a little bit of probability theory and c++.
