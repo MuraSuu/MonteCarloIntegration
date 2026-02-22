@@ -1,5 +1,6 @@
 [requires]
 gsl/2.7.1
+exprtk/0.0.3
 [generators]
 CMakeDeps
 CMakeToolchain

@@ -1,64 +1,112 @@
+#include <cstdio>
+#include <random>
+#include <string>
 #include <iostream>
-#include <cmath>
-#include <vector>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_cdf.h>
 
-//Calculate the mean i.e the integral.
-double MCIntegral(const std::vector<double>& y_sample)
-{
-    double sum = 0.0;
-    double N = static_cast<double>(y_sample.size());
+#include "exprtk.hpp"
 
-    for(double yi : y_sample)
-    { 
-        sum += yi;
-    }
-
-    return sum/N;
+namespace {
+    typedef exprtk::symbol_table<double> symbol_table_t;
+    typedef exprtk::expression<double>   expression_t;
+    typedef exprtk::parser<double>       parser_t;
+    typedef exprtk::parser_error::type   err_t;
 }
 
-//Calculate the sample variance of the data. Used for the ConfInterval function.
-double VarEstimate(const std::vector<double>& y_sample, double mean)
+template<typename T>
+struct rand0 final : public exprtk::ifunction<T>
 {
-    double N = static_cast<double>(y_sample.size());
-    double sum = 0.0;
+    using exprtk::ifunction<T>::operator();
 
-    for(double yi : y_sample)
+    std::random_device rd; //Distribuição não-deterministica e uniforme de inteiros 
+    std::mt19937 gen;
+    std::uniform_real_distribution<> d;
+
+    //Nenhum argumento necessario dado que vou usar uma.
+    //distribuição uniforme Unif(0,1).
+    rand0() : exprtk::ifunction<T>(0), gen(rd()) 
     {
-        sum += (yi - mean)*(yi- mean);
+        d = std::uniform_real_distribution<> (0.0, 1.0);
     }
-    return sum/(N-1);
-}
 
-std::pair<double, double> ConfInterval(double mean, double S_sq, std::size_t N, double alpha)
-{
-    double t_r = gsl_cdf_tdist_Q(1 - alpha/2, N - 1);
-    double t_l = - t_r;
+    inline T operator()() override
+    {
+        return d(gen);
+    }
+};
 
-    return std::make_pair<double, double>(mean + t_l*std::sqrt(S_sq/N), mean + t_r*std::sqrt(S_sq/N));
-}
 
 int main()
 {
-    gsl_rng_env_setup();
-    const gsl_rng_type* T = gsl_rng_default;
-    gsl_rng* r = gsl_rng_alloc(T);
-    std::vector<double> y_sample;
+    double x = 0.0;
+    double S = 0.0;
+    symbol_table_t symbol_table;
+    symbol_table.add_constants();
 
-    for(int i = 0; i < 10000; ++i)
-    {
-        double k = gsl_ran_flat(r, 0.0, 1.0);
-        y_sample.push_back(std::cos(k));
-    }
+    expression_t expression;
     
-    double mean = MCIntegral(y_sample);
-    double var = VarEstimate(y_sample, mean);
-    std::cout << "Integral estimate: " << mean << '\n' << "Var.: " << var << '\n'; 
+    std::string user_func;
 
-    auto p = ConfInterval(mean, var, y_sample.size(), 0.05);
-    std::cout << "[" <<p.first << ", " << p.second << "] \n";
+    std::printf("Ver 1.0\n");
+    std::printf("Will only work for single variable functions with \'x\' symbol\n");
+    std::printf("f(x) = ");
+    std::getline(std::cin, user_func);
+    
+    std::printf("Now choose the integration limits.\n");
+    std::string lower_limit;
+    std::printf("a >> ");
+    std::getline(std::cin, lower_limit);
+    std::string upper_limit;
+    std::printf("b >> ");
+    std::getline(std::cin, upper_limit);
+    std::string num_samples;
+    std::printf("Now the number of samples\nN >> ");
+    std::getline(std::cin, num_samples);
 
-    gsl_rng_free(r);
+    //Casting from string to double.
+    double b = std::stod(upper_limit);
+    double a = std::stod(lower_limit);
+    double N = std::stod(num_samples);
+
+    parser_t parser;
+
+    rand0<double> rand01;
+    
+    std::printf("The values given: %f, %f, %f\n", a, b, N);
+    symbol_table.add_variable("a", a);
+    symbol_table.add_variable("b", b);
+    symbol_table.add_variable("x", x);
+    symbol_table.add_variable("N", N);
+    symbol_table.add_function("rand01", rand01);
+    symbol_table.add_variable("S", S);
+
+    std::string monte_carlo_integration = 
+        "for(var i := 0; i < 1000; i += 1) "
+        "{                                 "
+        "   x := a + rand01()*(b-a);                 "
+        "   S += "+user_func+" ;           " //w(x)
+        "}                                 ";
+
+        
+    expression.register_symbol_table(symbol_table);
+ 
+    if(!parser.compile(monte_carlo_integration, expression))
+    {
+        std::printf("Error: %s\n", 
+                parser.error().c_str());
+        return -1;
+    }
+
+    std::printf("S=%.5f\n", S/1000.0*(b-a));
+    std::printf("Expression.value()=%.5f\n", expression.value());
+
+    S = 0.0;
+    int M = static_cast<int>(N);
+    for(int i = 0; i < M; ++i)
+    {
+        x = a+rand01()*(b-a);
+        S += x*x;
+    }
+    std::printf("Manual integration: %.5f\n", S/M*(b-a));
+
+    return 0;
 }
